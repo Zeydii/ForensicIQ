@@ -1,0 +1,20 @@
+# Case data — never commit
+/cases/
+*.csv
+*.json
+*.log
+normalizer.log
+
+# Python
+__pycache__/
+*.pyc
+*.pkl
+*.keras
+*.h5
+
+# Models
+ai_models/
+
+# Secrets
+.env
+

@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ForensicIQ — Threat Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg:#f5f4f1; --bg2:#ffffff; --bg3:#f0eeea; --bg4:#e8e5e0; --bg5:#dedad4;
+  --br:#dedad4; --br2:#ccc8c1;
+  --tx:#1a1916; --tx2:#5c5a54; --tx3:#9c9a93;
+  --accent:#2d6a4f; --accent2:#1b4332;
+  --red:#c0392b; --red-bg:#fdf0ee; --red-br:#f5c6c1;
+  --ora:#c0641a; --ora-bg:#fdf4ee; --ora-br:#f5d6b8;
+  --yel:#8a6d00; --yel-bg:#fdfbee; --yel-br:#ede5a0;
+  --grn:#1b6b3a; --grn-bg:#eef7f2; --grn-br:#b8dfc9;
+  --blu:#1a4a8a; --blu-bg:#eef2fa; --blu-br:#b8cef5;
+  --r:4px;
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Cascadia Code',monospace;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow2:0 2px 8px rgba(0,0,0,.08);
+}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--br2);border-radius:3px}
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--br);display:flex;flex-direction:column;overflow-y:auto}
+.brand{padding:18px 16px 16px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:10px}
+.brand-icon{width:30px;height:30px;background:var(--accent2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand-name{font-size:14px;font-weight:600;color:var(--tx)}
+.brand-sub{font-size:10px;color:var(--tx3);font-family:var(--mono);margin-top:1px}
+.nav-section{padding:16px 14px 4px;font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1.5px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 12px;margin:1px 6px;border-radius:var(--r);cursor:pointer;color:var(--tx2);font-size:12.5px;font-weight:400;transition:background .12s,color .12s}
+.nav-item:hover{background:var(--bg3);color:var(--tx)}
+.nav-item.active{background:var(--grn-bg);color:var(--accent2);font-weight:500;border-left:2px solid var(--accent);padding-left:10px}
+.nav-ico{font-size:13px;flex-shrink:0;width:18px;text-align:center;opacity:.6}
+.nav-item.active .nav-ico{opacity:1}
+.nbdg{margin-left:auto;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;background:var(--bg3);color:var(--tx3);border:1px solid var(--br)}
+.nbdg.warn{background:var(--ora-bg);color:var(--ora);border-color:var(--ora-br)}
+.nbdg.danger{background:var(--red-bg);color:var(--red);border-color:var(--red-br)}
+.sidebar-footer{margin-top:auto;padding:12px 14px;border-top:1px solid var(--br);font-size:10.5px;color:var(--tx3)}
+.conn{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--grn);flex-shrink:0}
+.dot.off{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.dot.loading{animation:blink 1.1s infinite;background:var(--yel)}
+.workspace{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:50px;background:var(--bg2);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 22px;gap:10px;flex-shrink:0}
+.case-chip{display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--br2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--accent2);font-family:var(--mono)}
+.os-tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid}
+.os-tag.windows{color:var(--blu);border-color:var(--blu-br);background:var(--blu-bg)}
+.os-tag.linux{color:var(--ora);border-color:var(--ora-br);background:var(--ora-bg)}
+.risk-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.tb-right{margin-left:auto;display:flex;gap:8px}
+.btn{padding:6px 14px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--br2);background:var(--bg2);color:var(--tx2);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:all .12s;box-shadow:var(--shadow)}
+.btn:hover{background:var(--bg3);color:var(--tx);border-color:var(--br2)}
+.content{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.g{display:grid;gap:12px}
+.g-4{grid-template-columns:repeat(4,1fr)}
+.g-3{grid-template-columns:repeat(3,1fr)}
+.g-2{grid-template-columns:repeat(2,1fr)}
+.g-21{grid-template-columns:2fr 1fr}
+.g-31{grid-template-columns:3fr 1fr}
+.g-12{grid-template-columns:1fr 2fr}
+@media(max-width:1400px){.g-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1100px){.g-21,.g-31,.g-12{grid-template-columns:1fr}.g-3{grid-template-columns:1fr 1fr}}
+.card{background:var(--bg2);border:1px solid var(--br);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.card-title{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1px}
+.card-title-lg{font-size:13px;font-weight:600;color:var(--tx)}
+.card-sub{font-size:11px;color:var(--tx3);margin-top:2px}
+.stat-accent-bar{height:3px;border-radius:2px;margin-bottom:12px}
+.stat-num{font-size:28px;font-weight:300;letter-spacing:-1px;line-height:1;color:var(--tx);margin-bottom:5px}
+.stat-label{font-size:12px;color:var(--tx2);font-weight:400}
+.stat-sub{font-size:11px;color:var(--tx3);margin-top:3px}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.gauge-canvas-wrap{position:relative;width:130px;height:130px}
+.gauge-canvas-wrap canvas{position:absolute;top:0;left:0;width:130px!important;height:130px!important}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-number{font-size:28px;font-weight:300;letter-spacing:-1px}
+.gauge-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-top:2px;color:var(--tx3)}
+.score-breakdown{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.score-row-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;color:var(--tx3)}
+.score-row-head span:last-child{color:var(--tx);font-weight:500}
+.score-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.score-fill{height:100%;border-radius:2px;transition:width .8s}
+.tbl-wrap{overflow-x:auto;max-height:460px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:2;background:var(--bg2)}
+th{padding:8px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--br2);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--bg3);vertical-align:middle;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.mono{font-family:var(--mono);font-size:11px}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;border:1px solid}
+.badge.critical{background:var(--red-bg);color:var(--red);border-color:var(--red-br)}
+.badge.high{background:var(--ora-bg);color:var(--ora);border-color:var(--ora-br)}
+.badge.medium{background:var(--yel-bg);color:var(--yel);border-color:var(--yel-br)}
+.badge.low{background:var(--grn-bg);color:var(--grn);border-color:var(--grn-br)}
+.badge.info{background:var(--blu-bg);color:var(--blu);border-color:var(--blu-br)}
+.badge.windows{background:var(--blu-bg);color:var(--blu);border-color:var(--blu-br)}
+.badge.linux{background:var(--ora-bg);color:var(--ora);border-color:var(--ora-br)}
+.badge.flag{background:var(--red-bg);color:var(--red);border-color:var(--red-br)}
+.badge.ok{background:var(--bg3);color:var(--tx3);border-color:var(--br)}
+.badge.anomaly{background:var(--red-bg);color:var(--red);border-color:var(--red-br)}
+.badge.normal{background:var(--grn-bg);color:var(--grn);border-color:var(--grn-br)}
+.badge.tier-critical{background:var(--red-bg);color:var(--red);border-color:var(--red-br);font-weight:700}
+.badge.tier-high{background:var(--ora-bg);color:var(--ora);border-color:var(--ora-br)}
+.badge.tier-medium{background:var(--yel-bg);color:var(--yel);border-color:var(--yel-br)}
+.badge.tier-low{background:var(--bg3);color:var(--tx3);border-color:var(--br)}
+.conf-bar{display:inline-flex;align-items:center;gap:5px;min-width:90px}
+.conf-track{flex:1;background:var(--bg3);border-radius:2px;height:5px;overflow:hidden}
+.conf-fill{height:100%;border-radius:2px;transition:width .4s}
+.mitre-pill{display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600;background:var(--blu-bg);color:var(--blu);border:1px solid var(--blu-br);margin:1px;font-family:var(--mono)}
+.hunt-match{background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:8px}
+.hunt-warn{background:var(--ora-bg);border-left:3px solid var(--ora);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:8px}
+.hunt-ok{background:var(--grn-bg);border-left:3px solid var(--grn);border-radius:0 var(--r) var(--r) 0;padding:10px 12px;margin-bottom:8px}
+.hunt-label{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.hunt-title{font-size:13px;font-weight:500;color:var(--tx);margin-bottom:3px}
+.hunt-desc{font-size:12px;color:var(--tx2);line-height:1.5}
+.score-mini{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:3px;background:var(--bg3);border:1px solid var(--br2);color:var(--tx)}
+.badge.wazuh-crit{background:var(--red-bg);color:var(--red);border-color:var(--red-br)}
+.badge.wazuh-high{background:var(--ora-bg);color:var(--ora);border-color:var(--ora-br)}
+.badge.wazuh-med{background:var(--yel-bg);color:var(--yel);border-color:var(--yel-br)}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.search-field{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--br2);border-radius:var(--r);padding:7px 12px;color:var(--tx);font-size:12.5px;font-family:var(--font)}
+.search-field:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(45,106,79,.12)}
+.search-field::placeholder{color:var(--tx3)}
+select.filter{background:var(--bg);border:1px solid var(--br2);border-radius:var(--r);padding:7px 9px;color:var(--tx);font-size:12px;cursor:pointer;font-family:var(--font)}
+select.filter:focus{outline:none;border-color:var(--accent)}
+.count-label{margin-left:auto;font-size:11px;color:var(--tx3);white-space:nowrap;background:var(--bg3);border:1px solid var(--br);border-radius:var(--r);padding:5px 10px}
+.chart-container{position:relative}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:52px 24px;text-align:center;gap:10px}
+.empty-icon{font-size:36px;opacity:.25}
+.empty h3{font-size:14px;font-weight:500;color:var(--tx2)}
+.empty p{font-size:12px;color:var(--tx3);max-width:420px;line-height:1.7}
+.empty code{background:var(--bg3);border:1px solid var(--br2);padding:1px 6px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--accent2)}
+.pager{display:flex;align-items:center;gap:4px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.pg-btn{padding:5px 10px;border-radius:var(--r);background:var(--bg2);border:1px solid var(--br2);color:var(--tx2);font-size:12px;cursor:pointer;transition:all .1s}
+.pg-btn:hover{background:var(--bg3);color:var(--tx)}
+.pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pg-info{font-size:11px;color:var(--tx3);padding:0 4px}
+.loading-wrap{display:flex;align-items:center;justify-content:center;gap:9px;padding:32px;color:var(--tx3)}
+.spin{width:15px;height:15px;border:2px solid var(--br2);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.info-bar{position:fixed;bottom:18px;right:18px;background:var(--bg2);border:1px solid var(--br2);border-radius:var(--r);padding:9px 14px;font-size:11.5px;color:var(--tx2);display:flex;align-items:center;gap:8px;z-index:200;max-width:400px;box-shadow:var(--shadow2)}
+.wsrc{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid}
+.wsrc.live{background:var(--grn-bg);color:var(--grn);border-color:var(--grn-br)}
+.wsrc.csv{background:var(--yel-bg);color:var(--yel);border-color:var(--yel-br)}
+.ioc-row{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg3);border:1px solid var(--br);border-radius:var(--r);margin-bottom:5px}
+.ioc-row-count{font-size:14px;font-weight:500;color:var(--tx)}
+.ioc-raw-value{max-width:420px;word-break:break-all;white-space:pre-wrap;overflow-wrap:anywhere;overflow:visible}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div><div class="brand-name">ForensicIQ</div><div class="brand-sub">Threat Analysis Platform</div></div>
+  </div>
+  <!-- Case switcher dropdown -->
+  <div style="padding:8px 10px;border-bottom:1px solid var(--br);background:var(--bg3)">
+    <div style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Active Case</div>
+    <select id="caseSwitcher" onchange="switchCase(this.value)"
+      style="width:100%;background:var(--bg2);border:1px solid var(--br2);border-radius:var(--r);
+             padding:5px 8px;font-size:11.5px;color:var(--tx);cursor:pointer;font-family:var(--font)">
+      <option value="">Loading cases…</option>
+    </select>
+    <div id="caseSwitchStatus" style="font-size:10px;color:var(--tx3);margin-top:3px;height:13px"></div>
+  </div>
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" id="ni-overview" onclick="navTo('overview',this)"><span class="nav-ico">📊</span> Dashboard</div>
+  <div class="nav-section">Detection</div>
+  <div class="nav-item" id="ni-hunting" onclick="navTo('hunting',this)"><span class="nav-ico">🎯</span> Correlated Threats<span class="nbdg danger" id="nb-hunting">—</span></div>
+  <div class="nav-item" id="ni-ai" onclick="navTo('ai',this)"><span class="nav-ico">🤖</span> AI Anomalies<span class="nbdg" id="nb-ai">—</span></div>
+  <div class="nav-item" id="ni-wazuh" onclick="navTo('wazuh',this)"><span class="nav-ico">🛡</span> Wazuh Alerts<span class="nbdg" id="nb-wazuh">—</span></div>
+  <div class="nav-item" id="ni-iocs" onclick="navTo('iocs',this)"><span class="nav-ico">🚨</span> IOC Explorer<span class="nbdg danger" id="nb-iocs">—</span></div>
+  <div class="nav-section">Investigation</div>
+  <div class="nav-item" id="ni-timeline" onclick="navTo('timeline',this)"><span class="nav-ico">🕐</span> Event Timeline</div>
+  <div class="nav-item" id="ni-processes" onclick="navTo('processes',this)"><span class="nav-ico">⚙️</span> Processes</div>
+  <div class="nav-item" id="ni-network" onclick="navTo('network',this)"><span class="nav-ico">🌐</span> Network</div>
+  <div class="nav-item" id="ni-users" onclick="navTo('users',this)"><span class="nav-ico">👤</span> Users & Accounts</div>
+  <div class="nav-item" id="ni-persistence" onclick="navTo('persistence',this)"><span class="nav-ico">🔗</span> Persistence</div>
+  <div class="sidebar-footer">
+    <div class="conn"><div class="dot loading" id="cDot"></div><span id="cText">Connecting…</span></div>
+    <div>ForensicIQ · <span id="caseDate">—</span></div>
+  </div>
+</nav>
+<div class="workspace">
+  <div class="topbar">
+    <div class="case-chip">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span id="topCaseId">Loading…</span>
+    </div>
+    <div id="topOsTags" style="display:flex;gap:6px"></div>
+    <div id="topRisk" class="risk-badge" style="border-color:var(--br2);color:var(--tx3)">Risk: —</div>
+    <div class="tb-right">
+      <button class="btn" onclick="doRefresh()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+  <div class="content" id="pageContent">
+    <div class="loading-wrap"><div class="spin"></div> Initializing…</div>
+  </div>
+</div>
+</div>
+<div class="info-bar" id="infoBar" style="display:none">
+  <div class="spin" id="infoSpin" style="display:none"></div>
+  <span id="infoMsg">Connecting to API…</span>
+</div>
+<script>
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+const API_BASE = location.protocol === 'file:'
+  ? 'http://localhost:8000/api'
+  : `${location.protocol}//${location.host}/api`;
+let SUMMARY = null, RISK = null;
+let currentPage = 'overview';
+const chartReg = {};
+
+/* ═══════════════════════════════════════════════════════════
+   API
+═══════════════════════════════════════════════════════════ */
+async function apiFetch(path, params = {}, method = 'GET') {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([,v]) => v !== undefined && v !== null))
+  ).toString();
+  const url = `${API_BASE}${path}${qs ? '?' + qs : ''}`;
+  const opts = { method, signal: AbortSignal.timeout(60000) };
+  if (method === 'POST') opts.headers = {'Content-Type':'application/json'};
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status} on ${path}`);
+  return r.json();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHART FACTORY
+═══════════════════════════════════════════════════════════ */
+const CHART_FONTS = { color: '#9c9a93', font: { size: 10, family: 'Inter' } };
+const CHART_GRID  = { color: 'rgba(0,0,0,.05)' };
+
+function killChart(id) {
+  if (chartReg[id]) { chartReg[id].destroy(); delete chartReg[id]; }
+}
+
+function drawDoughnut(id, labels, data, colors, cutout = '70%') {
+  killChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  chartReg[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#f5f4f1', borderWidth: 2, hoverOffset: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout,
+      plugins: { legend: { labels: { ...CHART_FONTS, boxWidth: 10, padding: 14 } } },
+      animation: { duration: 600 }
+    }
+  });
+}
+
+function drawBar(id, labels, vals, color = 'rgba(59,130,246,.7)', horiz = false) {
+  killChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  chartReg[id] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: color, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: horiz ? 'y' : 'x',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { ...CHART_FONTS, maxTicksLimit: horiz ? 5 : 10 }, grid: CHART_GRID },
+        y: { ticks: { ...CHART_FONTS }, grid: CHART_GRID }
+      },
+      animation: { duration: 500 }
+    }
+  });
+}
+
+function drawLine(id, labels, vals, color = '#3b82f6') {
+  killChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  chartReg[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ data: vals, borderColor: color, backgroundColor: color + '18', borderWidth: 1.5, pointRadius: 2, fill: true, tension: 0.4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { ...CHART_FONTS, maxTicksLimit: 14 }, grid: CHART_GRID },
+        y: { ticks: { ...CHART_FONTS }, grid: CHART_GRID }
+      },
+      animation: { duration: 500 }
+    }
+  });
+}
+
+function drawGauge(id, score, color) {
+  killChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  chartReg[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [score, 100 - score], backgroundColor: [color, '#e8e5e0'], borderWidth: 0, circumference: 250, rotation: 235 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '78%', plugins: { legend: { display: false } }, animation: { duration: 900 } }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════ */
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const cut = (s, n = 90) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
+const num = n => (Number(n) || 0).toLocaleString();
+
+const SevCols = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', info: '#3b82f6' };
+
+function bdg(val, cls) {
+  return `<span class="badge ${cls || (val || '').toLowerCase().replace(/\s+/g, '')}">${esc(val)}</span>`;
+}
+function sevBdg(s) { s = (s || 'info').toLowerCase(); return bdg(s, s); }
+function osBdg(os)  { return bdg(os, os); }
+function iocBdg(f)  { return (f === 'True' || f === 'true' || f === '1') ? bdg('FLAG','flag') : bdg('—','ok'); }
+
+function tbl(cols, rows, rowFn) {
+  if (!rows.length) return `<div class="empty"><div class="empty-icon">&#128202;</div><h3>No records</h3><p>No matching records.</p></div>`;
+  return `<div class="tbl-wrap"><table>
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(rowFn).join('')}</tbody>
+  </table></div>`;
+}
+
+function statCard(icon, val, label, glowColor = '#2d6a4f', sub = '') {
+  const n = typeof val === 'number' ? val : (Number(val)||0);
+  const pct = Math.min(100, Math.log1p(n) * 8);
+  return `<div class="card">
+    <div class="stat-accent-bar" style="background:${glowColor};width:${pct}%;min-width:20px;opacity:.7"></div>
+    <div class="stat-num">${num(n)}</div>
+    <div class="stat-label">${label}</div>
+    ${sub ? `<div class="stat-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function setInfo(msg) {
+  document.getElementById('infoMsg').textContent = msg;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONNECTION
+═══════════════════════════════════════════════════════════ */
+async function checkConn() {
+  try {
+    const h = await apiFetch('/health');
+    document.getElementById('cDot').className = 'dot';
+    document.getElementById('cText').textContent = h.wazuh_live ? 'API + Wazuh Live' : 'API Connected';
+    document.getElementById('infoBar').style.display = 'none';
+    return h.loaded;
+  } catch {
+    document.getElementById('cDot').className = 'dot off';
+    document.getElementById('cText').textContent = 'API Offline';
+    document.getElementById('infoBar').style.display = 'flex';
+    setInfo('Cannot reach API — run: python3 api.py --case /cases/normalized/CASE-XXX');
+    showOffline();
+    return false;
+  }
+}
+
+function showOffline() {
+  document.getElementById('pageContent').innerHTML = `<div class="card">
+    <div class="empty">
+      <div class="empty-icon">&#128268;</div>
+      <h3>API server not running</h3>
+      <p>Start the backend on your analysis server, then refresh this page.</p>
+      <br>
+      <p><code>pip3 install fastapi uvicorn pandas --break-system-packages</code></p>
+      <br>
+      <p><code>python3 api.py --case /cases/normalized/CASE-2026-001_TIMESTAMP</code></p>
+      <br>
+      <p>Use: <code>python3 api.py --case ... --wazuh-url https://192.168.56.102:55000 --wazuh-password PASS</code></p>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOPBAR SUMMARY
+═══════════════════════════════════════════════════════════ */
+async function loadTopbar() {
+  try {
+    // Load summary first — fast, local data only, never touches Wazuh VM
+    SUMMARY = await apiFetch('/summary');
+    document.getElementById('topCaseId').textContent = SUMMARY.case_id || 'Unknown';
+    document.getElementById('caseDate').textContent  = (SUMMARY.normalized_at || '').slice(0, 10);
+    document.getElementById('topOsTags').innerHTML =
+      (SUMMARY.os_sources || []).map(os => `<span class="os-tag ${os}">${os}</span>`).join('');
+
+    // Risk score — load in background, may hit Wazuh VM
+    (async () => {
+      try {
+        RISK = await apiFetch('/ai/risk_score');
+        const rc = document.getElementById('topRisk');
+        if(!rc) return;
+        rc.textContent = `Risk: ${RISK.score}/100 — ${RISK.level}`;
+        rc.style.background  = RISK.color + '18';
+        rc.style.color       = RISK.color;
+        rc.style.borderColor = RISK.color + '50';
+      } catch(_) {}
+    })();
+
+    // Nav badges
+    const c = SUMMARY.counts || {};
+    function setNb(id, val, warn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = num(val);
+      el.className = 'nbdg' + (warn && val > 0 ? ' danger' : val > 0 ? ' warn' : '');
+    }
+    setNb('nb-iocs',  c.iocs || 0, true);
+    // Fix 6: only show Wazuh badge if alerts actually exist — hide it when Wazuh is offline
+    const wazuhCnt = c.wazuh_alerts || 0;
+    const wazuhEl  = document.getElementById('nb-wazuh');
+    if (wazuhEl) {
+      if (wazuhCnt > 0) {
+        wazuhEl.textContent = num(wazuhCnt);
+        wazuhEl.className   = 'nbdg warn';
+        wazuhEl.style.display = '';
+      } else {
+        wazuhEl.style.display = 'none';   // hide entirely — Wazuh offline, no noise
+      }
+    }
+    setNb('nb-ai',    c.ai_anomalies || 0, c.ai_anomalies > 0);
+    (async () => {
+      try {
+        const cs = await apiFetch('/correlation/summary');
+        // Merge correlation COMPROMISED count into hunting badge
+        const nb = document.getElementById('nb-hunting');
+        const huntNb = document.getElementById('nb-hunting');
+        const cnt = cs.compromised||0;
+        // Keep whichever is larger: hunting count or correlation compromised
+        const current = parseInt(huntNb?.textContent?.replace(/,/g,'')) || 0;
+        const combined = Math.max(current, cnt);
+        if(huntNb){ huntNb.textContent = num(combined); huntNb.className='nbdg'+(combined>0?' danger':''); }
+      } catch(_) {}
+    })();
+    // hunting badge — fire and forget, never blocks page load
+    (async () => {
+      try {
+        const hs = await apiFetch('/hunting/summary');
+        const nb = document.getElementById('nb-hunting');
+        const cnt = (hs.stats&&hs.stats.total_matches)||hs.total_matches||0;
+        // Note: cnt includes ai_only events for Linux cases
+        if(nb){ nb.textContent = num(cnt); nb.className='nbdg'+(cnt>0?' danger':''); }
+      } catch(_) {}
+    })();
+  } catch (e) { console.warn('topbar:', e); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════════════ */
+function navTo(page, el) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else { const ni = document.getElementById('ni-' + page); if (ni) ni.classList.add('active'); }
+  renderPage(page);
+}
+
+async function renderPage(page) {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = '<div class="loading-wrap"><div class="spin"></div> Loading…</div>';
+  try {
+    switch (page) {
+      case 'overview':    await pgOverview();    break;
+      case 'timeline':    await pgTimeline();    break;
+      case 'iocs':        await pgIOCs();        break;
+      case 'wazuh':       await pgWazuh();       break;
+      case 'ai':          await pgAI();          break;
+      case 'processes':   await pgProcesses();   break;
+      case 'network':     await pgNetwork();     break;
+      case 'users':       await pgUsers();       break;
+      case 'persistence': await pgPersistence(); break;
+      case 'bulk':        await pgOverview();    break;
+      case 'enrichment':  await pgNetwork();    break;
+      case 'correlation': await pgHunting(); break;
+      case 'hunting':     await pgHunting(); break;
+    }
+  } catch (e) {
+    pc.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">&#10060;</div><h3>Error</h3><p>${esc(e.message)}</p></div></div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   OVERVIEW
+═══════════════════════════════════════════════════════════ */
+async function pgOverview() {
+  const [cd, topIOCs] = await Promise.all([
+    apiFetch('/overview/charts'),
+    apiFetch('/iocs', { sev: 'critical', limit: 5 })
+      .then(a => apiFetch('/iocs', { sev: 'high', limit: 10 })
+        .then(b => ({ rows: [...a.rows, ...b.rows] })))
+  ]);
+  const c   = SUMMARY?.counts || {};
+  const ibd = SUMMARY?.ioc_breakdown || {};
+
+  document.getElementById('pageContent').innerHTML = `
+<div class="g g-4">
+  ${statCard('📋', c.timeline_events||0, 'Total Events', '#1a4a8a', `Processes: ${num(c.processes||0)} · Network: ${num(c.network||0)}`)}
+  ${statCard('🚨', c.iocs||0, 'Indicators of Compromise', '#c0392b', `Critical: ${num(ibd.critical||0)} · High: ${num(ibd.high||0)}`)}
+  ${statCard('🛡', c.wazuh_alerts||0, 'Wazuh Detections', c.wazuh_alerts>0?'#c0641a':'#2d6a4f', c.wazuh_alerts>0?'Rule-based alerts fired':'')}
+  ${statCard('🎯', c.ai_anomalies||0, 'AI Anomalies', c.ai_anomalies>0?'#c0392b':'#2d6a4f', c.ai_anomalies>0?`${RISK?.score||0}/100 risk score`:'')}
+</div>
+
+<div class="g g-31">
+  <div class="g" style="gap:16px">
+    <!-- event timeline -->
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Events per Day</div>
+          <div class="card-sub">${num(c.timeline_events||0)} total events across both endpoints</div>
+        </div>
+      </div>
+      <div class="chart-container" style="height:170px"><canvas id="cTimeline"></canvas></div>
+    </div>
+    <!-- 2-col charts -->
+    <div class="g g-2">
+      <div class="card">
+        <div class="card-head"><div class="card-title">IOC Severity</div></div>
+        <div class="chart-container" style="height:170px"><canvas id="cSev"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Events by OS</div></div>
+        <div class="chart-container" style="height:170px"><canvas id="cOS"></canvas></div>
+      </div>
+    </div>
+    <!-- IOC categories -->
+    <div class="card">
+      <div class="card-head"><div class="card-title">IOC Category Distribution</div></div>
+      <div class="chart-container" style="height:150px"><canvas id="cCat"></canvas></div>
+    </div>
+  </div>
+
+  <!-- risk panel — 5-component from case_manager.py -->
+  <div class="card" style="display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:820px">
+    <div class="card-head" style="flex-shrink:0">
+      <div class="card-title-lg">Risk Assessment</div>
+      <span style="font-size:10px;color:var(--tx3)">0 – 100</span>
+    </div>
+
+    <!-- Gauge + score -->
+    <div class="gauge-wrap" style="flex-shrink:0">
+      <div class="gauge-canvas-wrap">
+        <canvas id="cGauge" width="140" height="140"></canvas>
+        <div class="gauge-center">
+          <div class="gauge-number" style="color:${RISK?.color||'#3b82f6'}">${RISK?.score||0}</div>
+          <div class="gauge-label" style="color:${RISK?.color||'#3b82f6'}">${RISK?.level||'—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interpretation sentence -->
+    ${RISK?.interpretation ? `<div style="font-size:11.5px;color:var(--tx2);line-height:1.5;padding:8px 10px;background:var(--bg3);border-radius:var(--r);border-left:3px solid ${RISK.color||'#3b82f6'}">${esc(RISK.interpretation)}</div>` : ''}
+
+    <!-- 5-component bars (A-E from case_manager) -->
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1px">Score Components</div>
+      ${(()=>{
+        // Support both new case_manager format (components.A_ioc_severity)
+        // and old api.py fallback format (breakdown.ioc)
+        const comps = RISK?.components || {};
+        const bd    = RISK?.breakdown  || {};
+        const items = [];
+
+        // New format from case_manager.py
+        const compKeys = [
+          {k:'A_ioc_severity',  label:'A  IOC Severity',      max:35, col:'#c0392b'},
+          {k:'B_ai_quality',    label:'B  AI Anomaly Quality', max:25, col:'#c0641a'},
+          {k:'C_correlation',   label:'C  Correlation Depth',  max:20, col:'#8a6d00'},
+          {k:'D_attack_chains', label:'D  Attack Chains',      max:15, col:'#1a4a8a'},
+          {k:'E_wazuh',         label:'E  Wazuh',              max:5,  col:'#1b6b3a'},
+        ];
+
+        // Fallback: old 3-component format
+        const fallbackItems = [
+          {k:'ioc',   label:'IOC findings', max:40, col:'#c0392b'},
+          {k:'ai',    label:'AI anomalies', max:35, col:'#c0641a'},
+          {k:'wazuh', label:'Wazuh alerts', max:25, col:'#8a6d00'},
+        ];
+
+        const useNew = compKeys.some(x => comps[x.k]);
+        const source = useNew ? compKeys : fallbackItems;
+        const data   = useNew ? comps     : bd;
+
+        return source.map(item => {
+          const c   = data[item.k] || {};
+          const pts = parseFloat(c.score||0);
+          const pct = Math.min(100, Math.round(pts/item.max*100));
+
+          // Detail line
+          let det = '';
+          if(useNew){
+            const inp = c.inputs||{};
+            if(item.k==='A_ioc_severity')  det = (inp.critical||0)+'c · '+(inp.high||0)+'h · '+(inp.medium||0)+'m IOCs';
+            else if(item.k==='B_ai_quality')det = (inp.CRITICAL||0)+' CRIT · '+(inp.HIGH||0)+' HIGH tiers';
+            else if(item.k==='C_correlation')det= (inp.compromised||0)+' COMP · '+(inp.suspicious||0)+' SUSP';
+            else if(item.k==='D_attack_chains')det=(inp.high_chains||0)+' HIGH · '+(inp.cross_platform||0)+' cross-plat';
+            else if(item.k==='E_wazuh')    det = (inp.critical||0)+' crit · '+(inp.high||0)+' high alerts';
+          } else {
+            det = c.critical!==undefined ? (c.critical||0)+' critical' : '';
+          }
+
+          return '<div>'
+            +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
+            +'<span style="color:var(--tx2);font-weight:500">'+item.label+'</span>'
+            +'<span style="color:var(--tx);font-weight:600">'+pts.toFixed(1)+'<span style="color:var(--tx3);font-weight:400">/'+item.max+'</span></span>'
+            +'</div>'
+            +'<div style="display:flex;align-items:center;gap:6px">'
+            +'<div style="flex:1;background:var(--bg3);border-radius:3px;height:6px;overflow:hidden">'
+            +'<div style="width:'+pct+'%;height:100%;background:'+item.col+';border-radius:3px;transition:width .6s"></div>'
+            +'</div>'
+            +'<span style="font-size:9.5px;color:var(--tx3);min-width:110px;text-align:right">'+det+'</span>'
+            +'</div></div>';
+        }).join('');
+      })()}
+    </div>
+
+    <!-- Key findings bullets -->
+    ${(()=>{
+      const kf = RISK?.key_findings||[];
+      if(!kf.length) return '';
+      return '<div style="border-top:1px solid var(--br);padding-top:10px">'
+        +'<div style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Key Findings</div>'
+        +kf.slice(0,6).map(f=>'<div style="display:flex;gap:7px;margin-bottom:5px;font-size:11.5px;color:var(--tx2);line-height:1.45">'
+          +'<span style="color:var(--red);flex-shrink:0;margin-top:1px">▸</span>'
+          +'<span>'+esc(f)+'</span></div>').join('')
+        +'</div>';
+    })()}
+
+    <!-- IOC severity mini summary -->
+    <div style="border-top:1px solid var(--br);padding-top:10px;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">IOC Breakdown</div>
+      ${Object.entries(ibd).filter(([,v])=>v>0).map(([sev,cnt])=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 9px;
+                  background:var(--bg3);border-radius:var(--r);border:1px solid var(--br)">
+        ${sevBdg(sev)}
+        <span style="font-size:13px;font-weight:600">${num(cnt)}</span>
+      </div>`).join('')}
+    </div>
+
+    <!-- Formula -->
+    <div style="font-size:9.5px;color:var(--tx3);font-family:var(--mono);padding:6px 8px;background:var(--bg3);border-radius:var(--r);flex-shrink:0">
+      ${esc(RISK?.formula||'A(IOC,35)+B(AI,25)+C(Corr,20)+D(Chains,15)+E(Wazuh,5)')}
+    </div>
+  </div>
+</div>
+
+<!-- top IOCs + bulk summary -->
+<div class="card">
+  <div class="card-head">
+    <div class="card-title-lg">&#128680; Critical &amp; High IOCs</div>
+    <button class="btn" onclick="navTo('iocs',null)" style="font-size:11px">View all →</button>
+  </div>
+  ${tbl(['OS','Category','Severity','Description','Value'], topIOCs.rows||[], r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td style="color:var(--tx2)">${esc(r.category)}</td>
+    <td>${sevBdg(r.severity)}</td>
+    <td title="${esc(r.description)}" style="color:var(--tx)">${esc(cut(r.description,90))}</td>
+    <td class="mono" style="color:var(--tx3);font-size:10.5px;max-width:280px;word-break:break-all;white-space:pre-wrap">${esc(r.raw_value||'')}</td>
+  </tr>`)}
+</div>
+</div>`;
+
+
+
+  setTimeout(() => {
+    const epd  = cd.events_per_day || {};
+    const dkeys = Object.keys(epd).sort();
+    drawLine('cTimeline', dkeys, dkeys.map(k => epd[k]), '#2d6a4f');
+
+    const iocSev = cd.ioc_severity || {};
+    drawDoughnut('cSev', Object.keys(iocSev), Object.values(iocSev),
+      Object.keys(iocSev).map(k => SevCols[k] || '#64748b'));
+
+    const osD = cd.events_by_os || {};
+    drawDoughnut('cOS', Object.keys(osD), Object.values(osD), ['#1a4a8a','#c0641a','#1b6b3a']);
+
+    const catD = cd.ioc_categories || {};
+    const catK = Object.keys(catD).slice(0, 8);
+    drawBar('cCat', catK, catK.map(k => catD[k]), 'rgba(192,57,43,.55)', true);
+
+    drawGauge('cGauge', RISK?.score || 0, RISK?.color || '#3b82f6');
+  }, 60);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TIMELINE
+═══════════════════════════════════════════════════════════ */
+let tlOff = 0;
+async function pgTimeline() {
+  tlOff = 0;
+  document.getElementById('pageContent').innerHTML = `
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">&#128336; Unified Event Timeline</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="tlQ" placeholder="&#128269;  Search events, user, hostname…" oninput="tlLoad(0)"/>
+    <select class="filter" id="tlOS" onchange="tlLoad(0)">
+      <option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option>
+    </select>
+    <select class="filter" id="tlSev" onchange="tlLoad(0)">
+      <option value="all">All Severity</option>
+      <option value="critical">Critical</option><option value="high">High</option>
+      <option value="medium">Medium</option><option value="info">Info</option>
+    </select>
+    <select class="filter" id="tlEtype" onchange="tlLoad(0)">
+      <option value="all">All Types</option>
+      <option value="process_creation">Process Creation</option>
+      <option value="logon">Logon</option><option value="logon_failed">Failed Logon</option>
+      <option value="network_connection">Network</option>
+      <option value="detection_rule">Detection Rule</option>
+      <option value="log_entry">Log Entry</option>
+    </select>
+    <select class="filter" id="tlIoc" onchange="tlLoad(0)">
+      <option value="all">All</option><option value="true">Flagged Only</option>
+    </select>
+    <div class="count-label" id="tlCount">—</div>
+  </div>
+  <div id="tlBody"></div>
+  <div class="pager" id="tlPager"></div>
+</div>`;
+  await tlLoad(0);
+}
+
+async function tlLoad(off) {
+  tlOff = off;
+  const LIMIT = 200;
+  const data = await apiFetch('/timeline', {
+    q: document.getElementById('tlQ')?.value || '',
+    os: document.getElementById('tlOS')?.value || 'all',
+    sev: document.getElementById('tlSev')?.value || 'all',
+    etype: document.getElementById('tlEtype')?.value || 'all',
+    ioc: document.getElementById('tlIoc')?.value || 'all',
+    limit: LIMIT, offset: off
+  });
+  document.getElementById('tlCount').textContent = `${num(data.total||0)} events`;
+  document.getElementById('tlBody').innerHTML = tbl(
+    ['Timestamp','OS','Source','Event Type','User','Severity','IOC','Description'],
+    data.rows || [], r => `<tr>
+      <td class="mono" style="font-size:10.5px;white-space:nowrap;color:var(--tx3)">${esc((r.timestamp_utc||'').slice(0,19).replace('T',' '))}</td>
+      <td>${osBdg(r.os)}</td>
+      <td class="mono" style="font-size:10px;color:var(--tx3)">${esc(cut((r.source||'').replace('plaso/',''),22))}</td>
+      <td style="color:var(--tx2)">${esc(r.event_type)}</td>
+      <td style="color:var(--tx3)">${esc(cut(r.username||'—',20))}</td>
+      <td>${sevBdg(r.severity||'info')}</td>
+      <td>${iocBdg(r.ioc_flag)}</td>
+      <td title="${esc(r.description)}" style="color:var(--tx)">${esc(cut(r.description,110))}</td>
+    </tr>`
+  );
+  // Paginator
+  const total = data.total || 0;
+  const pages = Math.ceil(total / LIMIT);
+  const cur   = Math.floor(off / LIMIT);
+  if (pages <= 1) { document.getElementById('tlPager').innerHTML = ''; return; }
+  let h = '';
+  if (cur > 0) h += `<button class="pg-btn" onclick="tlLoad(${(cur-1)*LIMIT})">&#8592;</button>`;
+  const s = Math.max(0, cur - 2), e = Math.min(pages, s + 5);
+  for (let i = s; i < e; i++)
+    h += `<button class="pg-btn ${i===cur?'active':''}" onclick="tlLoad(${i*LIMIT})">${i+1}</button>`;
+  if (cur < pages - 1) h += `<button class="pg-btn" onclick="tlLoad(${(cur+1)*LIMIT})">&#8594;</button>`;
+  h += `<span class="pg-info">Page ${cur+1} of ${pages}</span>`;
+  document.getElementById('tlPager').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IOCs
+═══════════════════════════════════════════════════════════ */
+async function pgIOCs() {
+  const cats = await apiFetch('/iocs/categories');
+  document.getElementById('pageContent').innerHTML = `
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">&#128680; IOC Explorer</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="iQ" placeholder="&#128269;  Search description, value, category…" oninput="iocLoad()"/>
+    <select class="filter" id="iOS" onchange="iocLoad()">
+      <option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option>
+    </select>
+    <select class="filter" id="iSev" onchange="iocLoad()">
+      <option value="all">All Severity</option>
+      <option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option>
+    </select>
+    <select class="filter" id="iCat" onchange="iocLoad()">
+      <option value="all">All Categories</option>
+      ${(cats.categories||[]).map(c=>`<option>${esc(c)}</option>`).join('')}
+    </select>
+    <div class="count-label" id="iCount">—</div>
+  </div>
+  <div id="iBody"></div>
+</div>`;
+  await iocLoad();
+}
+
+async function iocLoad() {
+  const d = await apiFetch('/iocs', {
+    q: document.getElementById('iQ')?.value||'',
+    os: document.getElementById('iOS')?.value||'all',
+    sev: document.getElementById('iSev')?.value||'all',
+    cat: document.getElementById('iCat')?.value||'all',
+    limit: 500
+  });
+  document.getElementById('iCount').textContent = `${num(d.total||0)} IOCs`;
+  document.getElementById('iBody').innerHTML = tbl(
+    ['OS','Category','Severity','Description','Raw Value'],
+    d.rows||[], r=>`<tr>
+      <td>${osBdg(r.os)}</td>
+      <td>${esc(r.category)}</td>
+      <td>${sevBdg(r.severity)}</td>
+      <td title="${esc(r.description)}">${esc(cut(r.description,130))}</td>
+      <td class="mono ioc-raw-value">${esc(r.raw_value||'')}</td>
+    </tr>`
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WAZUH
+═══════════════════════════════════════════════════════════ */
+async function pgWazuh() {
+  const summ = await apiFetch('/wazuh/summary');
+  if (!summ.loaded) {
+    document.getElementById('pageContent').innerHTML = `<div class="card"><div class="empty">
+      <div class="empty-icon">&#128737;</div>
+      <h3>Wazuh Alerts Not Loaded</h3>
+      <p>Export Wazuh alerts and place the file in your case artifacts folder.</p>
+      <br><p>Expected path: <code>artifacts/wazuh_alerts.csv</code></p>
+      <br><p>Or use <code>--wazuh-password YOUR_PASS</code> with user <strong>admin</strong> (not wazuh-wui).</p>
+      <br><p>Then restart the API or click Refresh.</p>
+    </div></div>`;
+    return;
+  }
+  document.getElementById('pageContent').innerHTML = `
+<div class="g g-4">
+  ${statCard('🛡', summ.total||0, 'Total Alerts', '#c0641a')}
+  ${statCard('🚨', summ.critical_alerts||0, 'Critical (≥12)', '#c0392b')}
+  ${statCard('👥', Object.keys(summ.active_agents||summ.by_agent||{}).length, 'Agents', '#1a4a8a')}
+  ${statCard('📋', summ.high_alerts||Object.keys(summ.top_rules||{}).length, 'High (10-11)', '#8a6d00')}
+</div>
+<div class="g g-2">
+  <div class="card">
+    <div class="card-head"><div class="card-title">Alerts by Level</div></div>
+    <div class="chart-container" style="height:200px"><canvas id="cWLvl"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title">Top Alert Rules</div></div>
+    <div class="chart-container" style="height:200px"><canvas id="cWRule"></canvas></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">Alert Log</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="wQ" placeholder="&#128269;  Search rule, agent, log…" oninput="wazLoad()"/>
+    <select class="filter" id="wLvl" onchange="wazLoad()">
+      <option value="all">All Levels</option>
+      ${[15,14,13,12,11,10,9,8].map(l=>`<option value="${l}">Level ${l}</option>`).join('')}
+    </select>
+    <div class="count-label" id="wCount">—</div>
+  </div>
+  <div id="wBody"></div>
+</div>`;
+
+  setTimeout(() => {
+    const lvl  = summ.by_level || {};
+    const lvlK = Object.keys(lvl);
+    drawBar('cWLvl', lvlK, lvlK.map(k=>lvl[k]),
+      lvlK.map(k=>parseInt(k)>=12?'rgba(192,57,43,.65)':parseInt(k)>=10?'rgba(192,100,26,.6)':'rgba(138,109,0,.5)'));
+
+    const rk = Object.keys(summ.top_rules||{}).slice(0,8);
+    drawBar('cWRule', rk.map(k=>cut(k,34)), rk.map(k=>summ.top_rules[k]), 'rgba(45,106,79,.55)', true);
+  }, 60);
+  await wazLoad();
+}
+
+async function wazLoad() {
+  const d = await apiFetch('/wazuh', {
+    q: document.getElementById('wQ')?.value||'',
+    level: document.getElementById('wLvl')?.value||'all',
+    limit: 400
+  });
+  document.getElementById('wCount').textContent = `${num(d.total||0)} alerts`;
+  const rows = d.rows || [];
+  const cols  = rows.length ? Object.keys(rows[0]) : [];
+  const ts_c  = cols.find(c=>c.includes('time')||c.includes('date'))||'timestamp';
+  const lvl_c = cols.find(c=>c.includes('level'))||'rule_level';
+  const dsc_c = cols.find(c=>c.includes('desc'))||'rule_description';
+  const ag_c  = cols.find(c=>c.includes('agent'))||'agent_name';
+  const id_c  = cols.find(c=>c.includes('rule_id')||c==='id')||'rule_id';
+  document.getElementById('wBody').innerHTML = tbl(
+    ['Timestamp','Level','Rule ID','Rule Description','Agent'],
+    rows, r => {
+      const lvlNum = parseInt(r[lvl_c]||0);
+      const lCls   = lvlNum>=12?'wazuh-crit':lvlNum>=10?'wazuh-high':'wazuh-med';
+      return `<tr>
+        <td class="mono" style="font-size:10.5px">${esc(cut(r[ts_c]||'',22))}</td>
+        <td><span class="badge ${lCls}">Level ${esc(r[lvl_c])}</span></td>
+        <td class="mono">${esc(r[id_c])}</td>
+        <td title="${esc(r[dsc_c])}">${esc(cut(r[dsc_c]||'',100))}</td>
+        <td>${esc(r[ag_c])}</td>
+      </tr>`;
+    }
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI ANOMALIES
+═══════════════════════════════════════════════════════════ */
+/* helpers for v8 AI output */
+function tierBdg(t){
+  const m={'CRITICAL':'tier-critical','HIGH':'tier-high','MEDIUM':'tier-medium','LOW':'tier-low'};
+  return `<span class="badge ${m[t]||'tier-low'}">${esc(t||'—')}</span>`;
+}
+function confBar(v){
+  const n=parseInt(v)||0;
+  const col=n>=80?'#1b6b3a':n>=60?'#c0641a':'#8a6d00';
+  return `<div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:${n}%;background:${col}"></div></div><span style="font-size:10px;color:var(--tx3)">${n}</span></div>`;
+}
+function mitrePills(t){
+  if(!t) return '—';
+  return t.split(',').map(x=>x.trim()).filter(Boolean).map(x=>`<span class="mitre-pill">${esc(x)}</span>`).join('');
+}
+
+/* ── riskBdg: coloured risk badge used by Network enrichment tables ── */
+function riskBdg(label) {
+  const l = (label||'').toLowerCase();
+  const cls = l==='critical'?'critical':l==='high'?'high':l==='medium'?'medium':l==='low'?'ok':'ok';
+  return `<span class="badge ${cls}">${esc(label||'—')}</span>`;
+}
+
+/* ── verdictBdg: COMPROMISED / SUSPICIOUS / NORMAL badge ──────────── */
+function verdictBdg(v) {
+  const u = (v||'').toUpperCase();
+  const cls = u==='COMPROMISED'?'critical':u==='SUSPICIOUS'?'high':'ok';
+  return `<span class="badge ${cls}">${esc(v||'—')}</span>`;
+}
+
+/* ── renderMitreBars: horizontal bar chart for MITRE technique counts ─ */
+function renderMitreBars(breakdown) {
+  const entries = Object.entries(breakdown||{}).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if (!entries.length) return '<div style="color:var(--tx3);font-size:11px;padding:8px">No MITRE data</div>';
+  const maxVal = entries[0][1] || 1;
+  return entries.map(([tech, cnt]) => {
+    const pct = Math.round(cnt / maxVal * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+      <span class="mitre-pill" style="flex-shrink:0;min-width:90px">${esc(tech)}</span>
+      <div style="flex:1;background:var(--bg3);border-radius:3px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:8px;background:#c0392b;border-radius:3px"></div>
+      </div>
+      <span style="font-size:11px;color:var(--tx3);min-width:30px;text-align:right">${cnt}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ── renderHuntTbl: table for correlated hunt matches ─────────────── */
+function renderHuntTbl(matches) {
+  if (!matches || !matches.length)
+    return '<div style="padding:20px;color:var(--tx3);text-align:center">No correlated events found.</div>';
+  const typeLabel = t => t==='triple'
+    ? '<span class="badge critical">Triple</span>'
+    : t==='ai_wazuh'
+    ? '<span class="badge high">AI+Wazuh</span>'
+    : '<span class="badge medium">AI+IOC</span>';
+  return tbl(
+    ['Timestamp','OS','Type','Tier','MITRE','Score','Description'],
+    matches.slice(0, 500),
+    r => `<tr>
+      <td class="mono" style="font-size:10.5px;white-space:nowrap">${esc((r.timestamp_utc||'').slice(0,19).replace('T',' '))}</td>
+      <td>${osBdg(r.os)}</td>
+      <td>${typeLabel(r.correlation_type)}</td>
+      <td>${tierBdg(r.alert_tier)}</td>
+      <td style="max-width:120px">${mitrePills(r.mitre_technique)}</td>
+      <td><span class="score-mini">${parseFloat(r.anomaly_score||0).toFixed(4)}</span></td>
+      <td title="${esc(r.description)}">${esc(cut(r.description,100))}</td>
+    </tr>`
+  );
+}
+
+/* ── Risk gauge SVG ─────────────────────────────────────────── */
+function riskGauge(score, color) {
+  const pct    = Math.max(0, Math.min(100, score));
+  const angle  = (pct / 100) * 180 - 90;
+  const rad    = angle * Math.PI / 180;
+  const cx = 60, cy = 60, r = 44;
+  const nx = cx + r * Math.cos(rad);
+  const ny = cy + r * Math.sin(rad);
+  return `<svg width="120" height="70" viewBox="0 0 120 70" style="display:block;margin:0 auto">
+    <path d="M16,60 A44,44 0 0,1 104,60" fill="none" stroke="#e0e0e0" stroke-width="8" stroke-linecap="round"/>
+    <path d="M16,60 A44,44 0 0,1 104,60" fill="none" stroke="${color}" stroke-width="8"
+          stroke-linecap="round" stroke-dasharray="${pct * 1.382} 138.2"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"
+          stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="3.5" fill="${color}"/>
+    <text x="${cx}" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="${color}">${pct}</text>
+  </svg>`;
+}
+
+/* ── Events-per-day sparkline ───────────────────────────────── */
+function epd_chart(epd, anomepd) {
+  const dates = Object.keys(epd).sort();
+  if (!dates.length) return '<div style="color:var(--tx3);font-size:11px;padding:8px">No timeline data</div>';
+  const vals  = dates.map(d => epd[d] || 0);
+  const avals = dates.map(d => anomepd[d] || 0);
+  const maxv  = Math.max(...vals, 1);
+  const W = 520, H = 80, pad = 4;
+  const bw   = Math.max(2, (W - pad * 2) / dates.length - 1);
+  const bars  = dates.map((d, i) => {
+    const h  = Math.round(((vals[i]  / maxv) * (H - 20)));
+    const ah = Math.round(((avals[i] / maxv) * (H - 20)));
+    const x  = pad + i * ((W - pad * 2) / dates.length);
+    return `<rect x="${x.toFixed(1)}" y="${(H-20-h)}" width="${bw.toFixed(1)}" height="${h}" fill="#3b82f620" rx="1"/>
+            <rect x="${x.toFixed(1)}" y="${(H-20-ah)}" width="${bw.toFixed(1)}" height="${ah}" fill="#c0392b90" rx="1"/>`;
+  }).join('');
+  const lbls = [0, Math.floor(dates.length/2), dates.length-1].map(i => {
+    const x = pad + i * ((W - pad * 2) / dates.length) + bw/2;
+    return `<text x="${x.toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--tx3)">${dates[i]||''}</text>`;
+  }).join('');
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block;max-width:${W}px">
+    ${bars}${lbls}
+    <text x="${pad}" y="10" font-size="8" fill="#3b82f6">■ Total</text>
+    <text x="${pad+45}" y="10" font-size="8" fill="#c0392b">■ Anomalies</text>
+  </svg>`;
+}
+
+async function pgAI() {
+  const caseId = (SUMMARY && SUMMARY.case_id) ? SUMMARY.case_id : 'current';
+  let summ;
+  try {
+    summ = await apiFetch('/case/' + encodeURIComponent(caseId) + '/ai_summary');
+  } catch(e) {
+    summ = await apiFetch('/ai/summary').catch(function() { return null; });
+  }
+
+  if (!summ || !summ.loaded) {
+    document.getElementById('pageContent').innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">&#128064;</div><h3>AI Model Output Not Found</h3><p>Run <code>ai_model_v9.py</code> and copy results to <code>artifacts/</code>.</p></div></div>';
+    return;
+  }
+
+  var driftBanner = '';
+  var dr = summ.drift || {};
+  if (dr.drift_score >= 0.60) {
+    driftBanner = '<div style="background:var(--ora-bg);border:1px solid var(--ora-br);border-left:4px solid var(--red);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:flex-start;margin-bottom:0"><span style="font-size:16px;flex-shrink:0">⚠️</span><div><div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:3px">HIGH DRIFT (' + dr.drift_score.toFixed(3) + ') — Models from a different endpoint</div><div style="font-size:11.5px;color:var(--tx2)">Scores ≥ 0.85 reliable. Top drifted: ' + (dr.top_drifted_features||[]).slice(0,3).map(function(f){return f.feature||f;}).join(', ') + '</div></div></div>';
+  } else if (dr.drift_score >= 0.30) {
+    driftBanner = '<div style="background:var(--yel-bg);border:1px solid var(--yel-br);border-left:4px solid var(--yel);border-radius:var(--r);padding:8px 14px;font-size:11.5px;color:var(--tx2);margin-bottom:0"><strong style="color:var(--yel)">MODERATE DRIFT (' + dr.drift_score.toFixed(3) + ')</strong> — CRITICAL/HIGH tier scores reliable.</div>';
+  }
+  var satBanner = '';
+  var sat = summ.saturation || {};
+  if (sat.saturated) {
+    satBanner = '<div style="background:var(--yel-bg);border:1px solid var(--yel-br);border-left:4px solid var(--yel);border-radius:var(--r);padding:8px 14px;font-size:11.5px;color:var(--tx2);margin-bottom:0">⚠ <strong style="color:var(--yel)">Score Saturation ' + (sat.saturation_pct ? sat.saturation_pct.toFixed(1) : '?') + '%</strong> — ' + (sat.log_scaled ? 'log1p applied.' : 'Mild vs severe may both show 1.0.') + '</div>';
+  }
+
+  var s    = summ.summary     || {};
+  var td   = summ.alert_tiers || {};
+  var po   = summ.per_os      || {};
+  var risk = summ.risk        || {};
+  var rcol = risk.color       || '#888';
+  var topMitre = Object.entries(summ.top_mitre||{}).slice(0,5);
+  var fpMsg = (summ.false_positives_filtered||0) > 0
+    ? '<span style="font-size:10px;color:var(--tx3)">&#128683; ' + summ.false_positives_filtered + ' FP patterns filtered</span>' : '';
+
+  var osRows = Object.entries(po).map(function(kv) {
+    var os = kv[0]; var v = kv[1];
+    return '<tr><td>' + osBdg(os) + '</td>'
+      + '<td style="text-align:right;padding:3px 8px">' + num(v.events) + '</td>'
+      + '<td style="text-align:right;padding:3px 8px">' + num(v.anomalies) + '</td>'
+      + '<td style="text-align:right;padding:3px 8px">' + (v.rate_pct||0).toFixed(1) + '%</td></tr>';
+  }).join('');
+
+  var mitrePart = topMitre.length
+    ? topMitre.map(function(tc) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0"><span class="mitre-pill">' + esc(tc[0]) + '</span><span style="font-size:12px;font-weight:600;color:var(--tx2)">' + num(tc[1]) + '</span></div>';
+      }).join('')
+    : '<div style="color:var(--tx3);font-size:11px">No MITRE data</div>';
+
+  var osPart = osRows
+    ? '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr><th style="text-align:left;padding:3px 8px">OS</th><th style="text-align:right;padding:3px 8px">Events</th><th style="text-align:right;padding:3px 8px">Anomalies</th><th style="text-align:right;padding:3px 8px">Rate</th></tr></thead><tbody>' + osRows + '</tbody></table>'
+    : '<div style="color:var(--tx3);font-size:11px">No OS breakdown</div>';
+
+  var aiOnlyRows = (summ.ai_only_findings||[]);
+
+  document.getElementById('pageContent').innerHTML = driftBanner + satBanner + ''
+    + '<div class="g g-4">'
+    + statCard('&#129302;', s.ai_anomalies||0, 'AI Anomalies', '#c0392b', s.anomaly_rate ? s.anomaly_rate.toFixed(2)+'% anomaly rate' : '')
+    + '<div class="card" style="border-top:3px solid var(--red)"><div style="font-size:22px;font-weight:700;color:var(--red)">' + num(td.CRITICAL||0) + '</div><div class="stat-label">Critical</div></div>'
+    + '<div class="card" style="border-top:3px solid var(--ora)"><div style="font-size:22px;font-weight:700;color:var(--ora)">' + num(td.HIGH||0) + '</div><div class="stat-label">High</div></div>'
+    + '<div class="card">' + riskGauge(risk.overall_score||0, rcol) + '<div style="text-align:center;margin-top:2px"><span style="font-size:11px;font-weight:600;color:' + rcol + '">' + (risk.level||'—') + '</span><div style="font-size:10px;color:var(--tx3)">AI Risk Score</div></div></div>'
+    + '</div>'
+    + '<div class="g" style="grid-template-columns:1fr 1fr;margin-top:0">'
+    + '<div class="card"><div class="card-head"><div class="card-title-lg">&#128196; Per-OS Breakdown</div></div>' + osPart + '</div>'
+    + '<div class="card"><div class="card-head"><div class="card-title-lg">&#128270; Top 5 MITRE Techniques</div></div>' + mitrePart + '</div>'
+    + '</div>'
+    + '<div class="card"><div class="card-head"><div class="card-title-lg">&#128064; Anomaly Search ' + fpMsg + '</div><div style="font-size:10.5px;color:var(--tx3)">All results pass FP filter (empty descriptions excluded)</div></div>'
+    + '<div class="toolbar"><input class="search-field" id="aQ" placeholder="&#128269;  Keyword in description, MITRE, event type…" oninput="aiLoad()"/>'
+    + '<select class="filter" id="aFlt" onchange="aiLoad()"><option value="true" selected>Anomalies Only</option><option value="all">All Events</option></select>'
+    + '<select class="filter" id="aTier" onchange="aiLoad()"><option value="all">All Tiers</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option></select>'
+    + '<select class="filter" id="aOS" onchange="aiLoad()"><option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option></select>'
+    + '<input class="search-field" id="aDate" placeholder="Date YYYY-MM-DD" style="width:130px" oninput="aiLoad()"/>'
+    + '<div class="count-label" id="aCount">—</div></div>'
+    + '<div id="aBody"></div></div>'
+
+  await aiLoad();
+}
+
+async function aiLoad() {
+  const tier  = document.getElementById('aTier')?.value || 'all';
+  const os    = document.getElementById('aOS')?.value   || 'all';
+  const mitre = document.getElementById('aMitre')?.value || '';
+  // Support both single aDate and range aDateFrom/aDateTo inputs
+  const aDate   = document.getElementById('aDate')?.value    || '';
+  const dateFrom= document.getElementById('aDateFrom')?.value|| aDate;
+  const dateTo  = document.getElementById('aDateTo')?.value  || aDate;
+  const q       = document.getElementById('aQ')?.value       || '';
+  const anomFlt = document.getElementById('aFlt')?.value     || 'true';
+  const d = await apiFetch('/ai/results', {
+    q,
+    anomaly:   anomFlt,
+    tier:      tier   !== 'all' ? tier  : undefined,
+    os:        os     !== 'all' ? os    : undefined,
+    mitre:     mitre  || undefined,
+    date_from: dateFrom || undefined,
+    date_to:   dateTo   || undefined,
+    limit: 500
+  });
+  const countEl = document.getElementById('aCount');
+  if (countEl) countEl.textContent = `${num(d.total||0)} anomalies`;
+  const bodyEl = document.getElementById('aBody');
+  if (!bodyEl) return;
+  // Client-side FP filter: remove rows with empty/short descriptions
+  const rows = (d.rows || []).filter(r => (r.description||'').trim().length > 10);
+  if (!rows.length) {
+    bodyEl.innerHTML = '<div style="padding:20px;color:var(--tx3);text-align:center">No anomalies match current filters.</div>';
+    return;
+  }
+  // Columns shown directly in the main table — excluded from the Details sub-table
+  const MAIN_COLS = new Set([
+    'timestamp_utc','os','alert_tier','confidence','mitre_technique',
+    'event_type','anomaly_score','description','explanation','anomaly','is_artifact'
+  ]);
+  bodyEl.innerHTML = tbl(
+    ['Timestamp','OS','Tier','Conf','MITRE','Event Type','Score','Description','Explanation','Details'],
+    rows, (r, rowIdx) => {
+      // Build sub-table of all remaining features (ae_score, if_score, etc.)
+      const detailKeys = Object.keys(r).filter(k => !MAIN_COLS.has(k) && r[k] !== '' && r[k] != null);
+      const detailId   = 'aidet_' + rowIdx;
+      const detailHtml = detailKeys.length
+        ? '<div style="max-height:180px;overflow-y:auto;margin-top:4px">'
+          + '<table style="border-collapse:collapse;font-family:monospace;font-size:10px;width:100%">'
+          + detailKeys.map(k =>
+              '<tr style="border-bottom:1px solid var(--bg3)">'
+              + '<td style="padding:2px 6px;color:var(--tx3);white-space:nowrap;font-weight:600">' + esc(k) + '</td>'
+              + '<td style="padding:2px 6px;color:var(--tx2);word-break:break-all">' + esc(String(r[k])) + '</td>'
+              + '</tr>'
+            ).join('')
+          + '</table></div>'
+        : '<span style="color:var(--tx3);font-size:10px">No extra fields</span>';
+      return '<tr>'
+        + '<td class="mono" style="font-size:10.5px;white-space:nowrap">' + esc((r.timestamp_utc||'').slice(0,19).replace('T',' ')) + '</td>'
+        + '<td>' + osBdg(r.os) + '</td>'
+        + '<td>' + tierBdg(r.alert_tier) + '</td>'
+        + '<td>' + confBar(r.confidence) + '</td>'
+        + '<td style="max-width:120px">' + mitrePills(r.mitre_technique) + '</td>'
+        + '<td>' + esc(r.event_type) + '</td>'
+        + '<td><span class="score-mini">' + parseFloat(r.anomaly_score||0).toFixed(4) + '</span></td>'
+        + '<td title="' + esc(r.description) + '">' + esc(cut(r.description,90)) + '</td>'
+        + '<td style="max-width:200px">'
+          + (r.explanation
+              ? '<details><summary style="font-size:10px;color:var(--tx3);cursor:pointer">explain</summary>'
+                + '<div style="font-size:10px;color:var(--tx2);line-height:1.6;padding:4px 0">' + esc(r.explanation||'') + '</div>'
+                + '</details>'
+              : '—')
+        + '</td>'
+        + '<td style="min-width:60px">'
+          + '<details id="' + detailId + '">'
+          + '<summary style="cursor:pointer;font-size:10px;color:var(--accent);white-space:nowrap">&#128203; details</summary>'
+          + detailHtml
+          + '</details>'
+        + '</td>'
+        + '</tr>';
+    }
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROCESSES
+═══════════════════════════════════════════════════════════ */
+async function pgProcesses() {
+  const d = await apiFetch('/processes', { limit: 500 });
+  const rows = d.rows || [];
+  document.getElementById('pageContent').innerHTML = `
+<div class="g g-4">
+  ${statCard('&#9881;', d.total||0,  'Total Processes','#3b82f6')}
+  ${statCard('&#128680;', rows.filter(r=>r.ioc_flag==='True').length,'Flagged','#ef4444')}
+  ${statCard('&#129522;', rows.filter(r=>r.os==='windows').length,'Windows','#3b82f6')}
+  ${statCard('&#128039;', rows.filter(r=>r.os==='linux').length,'Linux','#ef4444')}
+</div>
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">Process List</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="psQ" placeholder="&#128269;  Search name, path, user…" oninput="psLoad()"/>
+    <select class="filter" id="psOS" onchange="psLoad()"><option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option></select>
+    <select class="filter" id="psF"  onchange="psLoad()"><option value="all">All</option><option value="true">Flagged Only</option></select>
+    <div class="count-label" id="psCount">${num(d.total||0)} processes</div>
+  </div>
+  <div id="psBody">${renderPsTbl(rows)}</div>
+</div>`;
+}
+function renderPsTbl(rows){
+  return tbl(['OS','PID','Process Name','User','SHA-256','Start Time','Flag','Reason'],rows,r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td class="mono">${esc(r.pid)}</td>
+    <td><strong>${esc((r.name||'').replace(/^[\\\/_\s|`]+/,'').trim()||'—')}</strong></td>
+    <td>${esc(r.user)}</td>
+    <td class="mono" style="font-size:10px" title="${esc(r.hash_sha256)}">${esc((r.hash_sha256||'').slice(0,16))}${r.hash_sha256?'…':''}</td>
+    <td class="mono" style="font-size:10.5px">${esc((r.start_time||'').slice(0,19).replace('T',' '))}</td>
+    <td>${iocBdg(r.ioc_flag)}</td>
+    <td style="color:var(--c-high)" title="${esc(r.ioc_reason)}">${esc(cut(r.ioc_reason,60))}</td>
+  </tr>`);
+}
+async function psLoad(){
+  const d=await apiFetch('/processes',{q:document.getElementById('psQ')?.value||'',os:document.getElementById('psOS')?.value||'all',ioc:document.getElementById('psF')?.value||'all',limit:500});
+  document.getElementById('psCount').textContent=`${num(d.total||0)} processes`;
+  document.getElementById('psBody').innerHTML=renderPsTbl(d.rows||[]);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NETWORK
+═══════════════════════════════════════════════════════════ */
+async function pgNetwork(){
+  const [d, enrich] = await Promise.all([
+    apiFetch('/network', {limit:500}),
+    apiFetch('/enrichment/summary').catch(()=>({loaded:false})),
+  ]);
+  const rows = d.rows||[];
+  const eips  = enrich.loaded ? (enrich.ips||{})     : null;
+  const edoms = enrich.loaded ? (enrich.domains||{}) : null;
+
+  document.getElementById('pageContent').innerHTML = `
+<div class="g g-4">
+  ${statCard('🌐', d.total||0, 'Total Connections', '#1a4a8a')}
+  ${statCard('🚨', rows.filter(r=>r.ioc_flag==='True').length, 'Suspicious', '#c0392b')}
+  ${eips  ? statCard('🖥', eips.total||0,  'IPs Enriched',     '#1a4a8a', 'Internal: '+(eips.internal||0)+' · External: '+(eips.external||0)) : statCard('🖥', 0, 'IPs Enriched', '#9c9a93', 'Run enrichment_engine.py')}
+  ${edoms ? statCard('🌍', edoms.total||0, 'Domains Enriched', '#1a4a8a', 'IOC matches: '+(edoms.ioc_matches||0)) : statCard('🌍', 0, 'Domains Enriched', '#9c9a93', 'Run enrichment_engine.py')}
+</div>
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">🌐 Network Connections</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="nQ" placeholder="&#128269;  Search IP, port, process…" oninput="netLoad()"/>
+    <select class="filter" id="nOS" onchange="netLoad()"><option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option></select>
+    <select class="filter" id="nF"  onchange="netLoad()"><option value="all">All</option><option value="true">Suspicious Only</option></select>
+    <div class="count-label" id="nCount">${num(d.total||0)} connections</div>
+  </div>
+  <div id="nBody">${renderNetTbl(rows)}</div>
+</div>
+${enrich.loaded ? enrichNetHTML(enrich) : noEnrichHTML()}`;
+
+  // Always attempt to load enrichment data — works even if summary says
+  // loaded:false (e.g. enriched_ips.json exists but summary endpoint is stale)
+  if(enrich.loaded) {
+    netEnrichIPFilter();
+    netEnrichDomFilter();
+  } else {
+    // Try direct load as fallback
+    (async()=>{
+      try {
+        const ipCheck = await apiFetch('/enrichment/ips', {limit:1});
+        if(ipCheck.total > 0) {
+          // Re-render the page with enrichment now that we know it exists
+          const enrichFresh = await apiFetch('/enrichment/summary');
+          if(enrichFresh.loaded) {
+            // Insert enrichment panels
+            const existing = document.getElementById('enrichPanels');
+            if(existing) existing.remove();
+            const div = document.createElement('div');
+            div.id = 'enrichPanels';
+            div.innerHTML = enrichNetHTML(enrichFresh);
+            document.getElementById('pageContent').appendChild(div);
+            // Update stat cards
+            const eips2  = enrichFresh.ips||{};
+            const edoms2 = enrichFresh.domains||{};
+            document.querySelectorAll('[data-enrich-ips]').forEach(el=>{
+              el.textContent = num(eips2.total||0);
+            });
+            netEnrichIPFilter();
+            netEnrichDomFilter();
+          }
+        }
+      } catch(_) {}
+    })();
+  }
+}
+
+function cleanAddr(addr, port) {
+  // ss stores full "addr:port" in addr field — split cleanly
+  if(!addr || addr === ':' || addr === '*') return '—';
+  const a = String(addr).trim();
+  const p = String(port||'').trim();
+  // if address already contains the port or is just ":" return cleaned
+  if(a === p || a === ':' || a === '') return '—';
+  // Strip trailing colon
+  return a.replace(/:$/, '') || '—';
+}
+function renderNetTbl(rows){
+  // Filter out rows with no meaningful data (empty Linux ss placeholders)
+  const clean = rows.filter(r => {
+    const la = String(r.local_address||'').trim();
+    const ra = String(r.remote_address||'').trim();
+    // Keep row if it has a real local addr or remote addr (not just ":" or empty)
+    return (la && la !== ':' && la !== '*') || (ra && ra !== ':' && ra !== '*' && ra !== '0.0.0.0');
+  });
+  if(!clean.length) return `<div class="empty"><div class="empty-icon">🌐</div><h3>No connection data</h3></div>`;
+  return tbl(['OS','Protocol','Local Address','Remote Address','State','Process','Flag'],clean,r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td style="color:var(--tx3)">${esc(r.protocol||'TCP')}</td>
+    <td class="mono" style="font-size:10.5px">${cleanAddr(r.local_address,r.local_port)}${r.local_port&&r.local_port!==':'?':'+esc(r.local_port):''}</td>
+    <td class="mono" style="font-size:10.5px">${cleanAddr(r.remote_address,r.remote_port)}</td>
+    <td><span style="font-size:11px;color:var(--tx2)">${esc(r.state||'—')}</span></td>
+    <td style="font-size:11.5px">${esc(r.process_name||'—')}</td>
+    <td>${iocBdg(r.ioc_flag)}</td>
+  </tr>`);
+}
+
+function renderIPTbl(rows){
+  if(!rows||!rows.length) return '<p style="color:var(--tx3);font-size:12px;padding:12px 0">No IPs found.</p>';
+  return tbl(['IP','Type','Risk','Country','RDNS','Open Ports','IOC'],rows,r=>`<tr>
+    <td class="mono" style="font-weight:500">${esc(r.ip)}</td>
+    <td>${r.type==='internal'?'<span class="badge info">INT</span>':'<span class="badge high">EXT</span>'}</td>
+    <td>${riskBdg(r.risk_label)}</td>
+    <td style="font-size:11px">${esc((r.geo||{}).country||'—')}${(r.geo||{}).city?' · '+esc(r.geo.city):''}</td>
+    <td class="mono" style="font-size:10px;color:var(--tx3)">${esc(cut(r.rdns||'—',32))}</td>
+    <td class="mono" style="font-size:10.5px">${(r.ports||[]).length ? (r.ports||[]).slice(0,5).join(', ')+(r.ports.length>5?' +'+( r.ports.length-5)+'…':'') : '—'}</td>
+    <td>${r.ioc_match?'<span class="badge critical">'+esc(r.ioc_match)+'</span>':'<span style="color:var(--tx3)">—</span>'}</td>
+  </tr>`);
+}
+
+function renderDomTbl(rows){
+  if(!rows||!rows.length) return '<p style="color:var(--tx3);font-size:12px;padding:12px 0">No domains found.</p>';
+  return tbl(['Domain','Resolved IPs','Risk','IOC','Notes'],rows,r=>`<tr>
+    <td class="mono" style="font-size:11px;max-width:260px;white-space:normal;word-break:break-all" title="${esc(r.domain)}">${esc(r.domain)}</td>
+    <td class="mono" style="font-size:10px;color:var(--tx3)">${(r.resolved_ips||[]).join(', ')||'<span style="color:var(--red);font-size:10px">unresolved</span>'}</td>
+    <td>${riskBdg(r.risk_label)}</td>
+    <td>${r.ioc_match?'<span class="badge critical">'+esc(r.ioc_match)+'</span>':'<span style="color:var(--tx3)">—</span>'}</td>
+    <td style="font-size:11px;color:var(--tx3);max-width:200px;white-space:normal">${esc((r.reasons||[]).join(' · ')||'—')}</td>
+  </tr>`);
+}
+
+async function netLoad(){
+  const d = await apiFetch('/network',{
+    q:   document.getElementById('nQ')?.value||'',
+    os:  document.getElementById('nOS')?.value||'all',
+    ioc: document.getElementById('nF')?.value||'all',
+    limit: 500
+  });
+  const cnt = document.getElementById('nCount');
+  const bod = document.getElementById('nBody');
+  if(cnt) cnt.textContent = num(d.total||0)+' connections';
+  if(bod) bod.innerHTML = renderNetTbl(d.rows||[]);
+}
+
+
+function enrichNetHTML(enrich) {
+  const eips  = enrich.ips||{};
+  const edoms = enrich.domains||{};
+  // Risk distribution summary pills
+  function riskPills(rc) {
+    const pairs = [['CRITICAL','var(--red)'],['HIGH','var(--ora)'],['MEDIUM','var(--yel)'],['LOW','var(--grn)'],['CLEAN','var(--tx3)']];
+    return pairs.map(([k,c])=>{
+      const n = (rc||{})[k.toLowerCase()]||0;
+      if(!n) return '';
+      return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--bg3);border:1px solid var(--br);border-radius:3px;font-size:10px;margin-right:4px">'
+        +'<span style="width:6px;height:6px;border-radius:50%;background:'+c+';flex-shrink:0"></span>'
+        +k+' <strong>'+n+'</strong></span>';
+    }).join('');
+  }
+  return '<div class="card" style="margin-top:0">'
+    +'<div class="card-head">'
+    +'<div><div class="card-title-lg">🖥 Enriched IPs <span style="font-size:11px;font-weight:400;color:var(--tx3)">'+num(eips.total||0)+' total · Nmap · GeoIP · IOC matching</span></div>'
+    +'<div style="margin-top:6px">'+riskPills(eips.risk_counts)+'</div></div>'
+    +'</div>'
+    +'<div class="toolbar">'
+    +'<input class="search-field" id="eipQ2" placeholder="🔍  Search IP, hostname, country…" oninput="netEnrichIPFilter()"/>'
+    +'<select class="filter" id="eipRisk2" onchange="netEnrichIPFilter()">'
+    +'<option value="all">All Risk</option>'
+    +'<option value="critical">Critical (≥0.7)</option>'
+    +'<option value="high">High (≥0.5)</option>'
+    +'<option value="medium">Medium (≥0.3)</option>'
+    +'<option value="low">Low (>0)</option>'
+    +'<option value="clean">Clean (0)</option></select>'
+    +'<select class="filter" id="eipType2" onchange="netEnrichIPFilter()">'
+    +'<option value="all">All Types</option>'
+    +'<option value="internal">Internal</option>'
+    +'<option value="external">External</option></select>'
+    +'<div class="count-label" id="eipCount2">'+num(eips.total||0)+' IPs</div></div>'
+    +'<div id="eipBody2"><div class="loading-wrap"><div class="spin"></div></div></div>'
+    +'</div>'
+    +'<div class="card" style="margin-top:0">'
+    +'<div class="card-head">'
+    +'<div><div class="card-title-lg">🌍 Enriched Domains <span style="font-size:11px;font-weight:400;color:var(--tx3)">'+num(edoms.total||0)+' total · DNS resolution · IOC matching</span></div>'
+    +'<div style="margin-top:6px">'+riskPills(edoms.risk_counts)+'</div></div>'
+    +'</div>'
+    +'<div class="toolbar">'
+    +'<input class="search-field" id="edomQ2" placeholder="🔍  Search domain, IP, risk…" oninput="netEnrichDomFilter()"/>'
+    +'<select class="filter" id="edomRisk2" onchange="netEnrichDomFilter()">'
+    +'<option value="all">All Risk</option>'
+    +'<option value="critical">Critical (≥0.7)</option>'
+    +'<option value="high">High (≥0.5)</option>'
+    +'<option value="medium">Medium (≥0.3)</option>'
+    +'<option value="low">Low (>0)</option>'
+    +'<option value="clean">Clean (0)</option></select>'
+    +'<div class="count-label" id="edomCount2">'+num(edoms.total||0)+' domains</div></div>'
+    +'<div id="edomBody2"><div class="loading-wrap"><div class="spin"></div></div></div>'
+    +'</div>';
+}
+
+function noEnrichHTML() {
+  return '<div id="enrichPanels">'
+    +'<div class="card"><div style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--tx3)">'
+    +'<div class="spin"></div>'
+    +'<span style="font-size:12px">Checking for enrichment data…</span>'
+    +'</div></div></div>';
+}
+
+async function netEnrichIPFilter() {
+  const q    = document.getElementById('eipQ2')?.value||'';
+  const risk = document.getElementById('eipRisk2')?.value||'all';
+  const type = document.getElementById('eipType2')?.value||'all';
+  try {
+    const params = {q, risk, limit:300};
+    if(type !== 'all') params.type = type;
+    const d = await apiFetch('/enrichment/ips', params);
+    const cnt = document.getElementById('eipCount2');
+    const bod = document.getElementById('eipBody2');
+    if(cnt) cnt.textContent = num(d.total)+' IPs';
+    if(bod) bod.innerHTML = renderIPTbl(d.rows||[]);
+  } catch(e) {
+    const bod = document.getElementById('eipBody2');
+    if(bod) bod.innerHTML = '<p style="color:var(--tx3);padding:12px">Failed to load: '+esc(e.message)+'</p>';
+  }
+}
+
+async function netEnrichDomFilter() {
+  const q    = document.getElementById('edomQ2')?.value||'';
+  const risk = document.getElementById('edomRisk2')?.value||'all';
+  try {
+    const d = await apiFetch('/enrichment/domains', {q, risk, limit:300});
+    const cnt = document.getElementById('edomCount2');
+    const bod = document.getElementById('edomBody2');
+    if(cnt) cnt.textContent = num(d.total)+' domains';
+    if(bod) bod.innerHTML = renderDomTbl(d.rows||[]);
+  } catch(e) {
+    const bod = document.getElementById('edomBody2');
+    if(bod) bod.innerHTML = '<p style="color:var(--tx3);padding:12px">Failed to load: '+esc(e.message)+'</p>';
+  }
+}
+
+
+async function pgUsers(){
+  const d=await apiFetch('/users',{limit:500});
+  const rows=d.rows||[];
+  document.getElementById('pageContent').innerHTML=`
+<div class="g g-4">
+  ${statCard('👤',d.total||0,'User Accounts','#1a4a8a')}
+  ${statCard('🔑',rows.filter(r=>r.has_sudo==='True').length,'Sudo Users','#c0641a')}
+  ${statCard('🚨',rows.filter(r=>r.ioc_flag==='True').length,'Flagged','#c0392b')}
+  ${statCard('🐧',rows.filter(r=>r.os==='linux').length,'Linux Accounts','#c0641a')}
+</div>
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">User Accounts</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="uQ" placeholder="&#128269;  Search username, home, shell…" oninput="userLoad()"/>
+    <select class="filter" id="uF" onchange="userLoad()"><option value="all">All</option><option value="true">Flagged Only</option></select>
+    <div class="count-label" id="uCount">${num(d.total||0)} users</div>
+  </div>
+  <div id="uBody">${renderUserTbl(rows)}</div>
+</div>`;
+}
+function renderUserTbl(rows){
+  return tbl(['OS','Username','UID','Home','Shell','Sudo','Flag','Reason'],rows,r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td><strong>${esc(r.username)}</strong></td>
+    <td class="mono">${esc(r.uid)}</td>
+    <td class="mono" style="font-size:10.5px">${esc(r.home)}</td>
+    <td class="mono" style="font-size:10.5px">${esc(r.shell)}</td>
+    <td>${r.has_sudo==='True'?bdg('YES','high'):bdg('—','ok')}</td>
+    <td>${iocBdg(r.ioc_flag)}</td>
+    <td style="color:var(--c-crit)">${esc(r.ioc_reason)}</td>
+  </tr>`);
+}
+async function userLoad(){
+  const d=await apiFetch('/users',{q:document.getElementById('uQ')?.value||'',ioc:document.getElementById('uF')?.value||'all',limit:500});
+  document.getElementById('uCount').textContent=`${num(d.total||0)} users`;
+  document.getElementById('uBody').innerHTML=renderUserTbl(d.rows||[]);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PERSISTENCE
+═══════════════════════════════════════════════════════════ */
+async function pgPersistence(){
+  const d=await apiFetch('/persistence',{limit:500});
+  const rows=d.rows||[];
+  document.getElementById('pageContent').innerHTML=`
+<div class="g g-4">
+  ${statCard('🔒',d.total||0,'Total Entries','#1a4a8a')}
+  ${statCard('🚨',rows.filter(r=>r.ioc_flag==='True').length,'Suspicious','#c0392b')}
+  ${statCard('🪟',rows.filter(r=>r.os==='windows').length,'Windows','#1a4a8a')}
+  ${statCard('🐧',rows.filter(r=>r.os==='linux').length,'Linux','#c0641a')}
+</div>
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">Persistence Mechanisms</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="pQ" placeholder="&#128269;  Search entry, source…" oninput="persLoad()"/>
+    <select class="filter" id="pOS" onchange="persLoad()"><option value="all">All OS</option><option value="windows">Windows</option><option value="linux">Linux</option></select>
+    <select class="filter" id="pF" onchange="persLoad()"><option value="all">All</option><option value="true">Suspicious Only</option></select>
+    <div class="count-label" id="pCount">${num(d.total||0)} entries</div>
+  </div>
+  <div id="pBody">${renderPersTbl(rows)}</div>
+</div>`;
+}
+function renderPersTbl(rows){
+  return tbl(['OS','Source','Flag','Reason','Entry'],rows,r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td>${esc(r.source)}</td>
+    <td>${iocBdg(r.ioc_flag)}</td>
+    <td style="color:var(--c-high)">${esc(cut(r.ioc_reason,60))}</td>
+    <td class="mono" style="font-size:10.5px" title="${esc(r.entry)}">${esc(cut(r.entry,150))}</td>
+  </tr>`);
+}
+async function persLoad(){
+  const d=await apiFetch('/persistence',{q:document.getElementById('pQ')?.value||'',os:document.getElementById('pOS')?.value||'all',ioc:document.getElementById('pF')?.value||'all',limit:500});
+  document.getElementById('pCount').textContent=`${num(d.total||0)} entries`;
+  document.getElementById('pBody').innerHTML=renderPersTbl(d.rows||[]);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BULK EXTRACTOR
+═══════════════════════════════════════════════════════════ */
+async function pgBulk(){
+  const [d,types]=await Promise.all([apiFetch('/bulk',{limit:500}),apiFetch('/bulk/types')]);
+  document.getElementById('pageContent').innerHTML=`
+<div class="card">
+  <div class="card-head"><div class="card-title-lg">&#128269; Bulk Extractor Results</div></div>
+  <div class="toolbar">
+    <input class="search-field" id="bQ" placeholder="&#128269;  Search value, context…" oninput="bulkLoad()"/>
+    <select class="filter" id="bT" onchange="bulkLoad()">
+      <option value="all">All Types</option>
+      ${(types.types||[]).map(t=>`<option>${esc(t)}</option>`).join('')}
+    </select>
+    <div class="count-label" id="bCount">${num(d.total||0)} hits</div>
+  </div>
+  <div id="bBody">${renderBulkTbl(d.rows||[])}</div>
+</div>`;
+}
+function renderBulkTbl(rows){
+  return tbl(['OS','Type','Value','Context'],rows,r=>`<tr>
+    <td>${osBdg(r.os)}</td>
+    <td>${bdg(r.type||'?',r.type)}</td>
+    <td class="mono" title="${esc(r.value)}">${esc(cut(r.value,110))}</td>
+    <td style="font-size:11px;color:var(--c-muted)" title="${esc(r.context)}">${esc(cut(r.context,110))}</td>
+  </tr>`);
+}
+async function bulkLoad(){
+  const d=await apiFetch('/bulk',{q:document.getElementById('bQ')?.value||'',type:document.getElementById('bT')?.value||'all',limit:500});
+  document.getElementById('bCount').textContent=`${num(d.total||0)} hits`;
+  document.getElementById('bBody').innerHTML=renderBulkTbl(d.rows||[]);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   CORRELATED THREATS — merged Threat Hunting + Correlation
+   Shows events confirmed by 2+ detection sources.
+   Uses /hunting/summary for multi-source matches and
+   /correlation/summary for IOC verdict context + attack chains.
+═══════════════════════════════════════════════════════════ */
+/* =============================================================
+   CORRELATED THREATS
+   Fix 1: Timeline uses full_events_per_day (all dates incl. April)
+   Fix 2: Pattern Flags card removed
+   Fix 5: Attack chain time bands on chart
+   Fix 6: Wazuh=0 stat cards suppressed
+============================================================= */
+async function pgHunting() {
+  document.getElementById('pageContent').innerHTML =
+    '<div class="loading-wrap"><div class="spin"></div> Loading correlated threats…</div>';
+
+  var results = await Promise.all([
+    apiFetch('/hunting/summary').catch(function() { return null; }),
+    apiFetch('/correlation/summary').catch(function() { return null; }),
+    apiFetch('/chains/summary').catch(function() { return null; }),
+  ]);
+  var huntData  = results[0];
+  var corrData  = results[1];
+  var chainData = results[2];
+
+  if (!huntData && !corrData) {
+    document.getElementById('pageContent').innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">&#127919;</div><h3>No correlation data available</h3><p>Ensure AI results have been run.</p></div></div>';
+    return;
+  }
+
+  var m     = (huntData && huntData.matches) || [];
+  var stats = (huntData && huntData.stats)   || {};
+  var corr  = corrData || {};
+  var cs    = (chainData && chainData.chains)       || [];
+  var chainRanges = (chainData && chainData.chain_ranges) || [];
+
+  var tripleHits  = m.filter(function(x){return x.correlation_type==='triple';}).length;
+  var aiIoc       = m.filter(function(x){return x.correlation_type==='ai_ioc';}).length;
+  var aiWazuh     = m.filter(function(x){return x.correlation_type==='ai_wazuh';}).length;
+  var wazuhOnline = tripleHits > 0 || aiWazuh > 0;
+
+  var sevColor = function(s) { return s==='HIGH'?'var(--red)':s==='MEDIUM'?'var(--ora)':'var(--tx3)'; };
+
+  var chainHtml = cs.length ? cs.map(function(c) {
+    var sev    = c.severity || 'LOW';
+    var phases = (c.kill_chain_phases||[]).join(' → ') || c.tactic_summary || 'Unknown phase';
+    var xp     = c.cross_platform ? '<span class="badge high" style="margin-left:6px;font-size:9px">CROSS-PLATFORM</span>' : '';
+    var flags  = (c.pattern_flags||[]).length
+      ? '<div style="margin-top:5px">' + c.pattern_flags.map(function(f){return '<span class="badge medium" style="margin-right:3px;font-size:9px">'+esc(f)+'</span>';}).join('') + '</div>' : '';
+    var mitres = (c.mitre_tactics||[]).slice(0,4).map(function(t){return '<span class="mitre-pill">'+esc(t)+'</span>';}).join('');
+    return '<div style="padding:12px 14px;margin-bottom:8px;border-left:3px solid '+sevColor(sev)+';background:var(--bg3);border-radius:0 var(--r) var(--r) 0">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      + '<span style="font-size:11px;font-weight:700;color:'+sevColor(sev)+'">'+esc(sev)+'</span>'
+      + '<span style="font-size:12px;font-weight:600;color:var(--tx)">'+esc(c.chain_id||'')+xp+'</span>'
+      + '<span class="badge '+(c.verdict==='COMPROMISED'?'critical':'high')+'">'+esc(c.verdict||'')+'</span>'
+      + '<span class="score-mini" style="margin-left:auto">'+parseFloat(c.chain_score||0).toFixed(3)+'</span>'
+      + '</div>'
+      + '<div style="font-size:11.5px;color:var(--tx2);margin-bottom:4px">'+esc(c.headline||'')+'</div>'
+      + '<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">'
+      + esc((c.time_start||'').slice(0,19).replace('T',' '))
+      + ' → ' + esc((c.time_end||'').slice(0,19).replace('T',' '))
+      + '  ·  ' + c.event_count + ' events  ·  ' + esc(phases)
+      + '</div>'
+      + (mitres ? '<div style="margin-bottom:3px">'+mitres+'</div>' : '')
+      + flags + '</div>';
+  }).join('') : '<div class="empty"><div class="empty-icon">&#9939;</div><h3>No chains yet</h3><p>Run: <code>python3 attack_chain.py --input artifacts/correlation_results.json --outdir artifacts/</code></p></div>';
+
+  var chainSubtitle = cs.length
+    ? cs.length + ' chains | ' + (chainData.high_chains||0) + ' HIGH · ' + (chainData.medium_chains||0) + ' MEDIUM · ' + (chainData.compromised_chains||0) + ' COMPROMISED'
+    : 'No chains found';
+
+  /* corrSection replaced by corrSectionFiltered below — Top COMPROMISED card removed */
+
+  // Build corrSection WITHOUT the Top COMPROMISED card (Fix 2: removed that entire card)
+  var corrSectionFiltered = corr.loaded ? (
+    '<div class="card"><div class="card-head"><div class="card-title-lg">All Correlation Results</div><button class="btn" onclick="triggerCorrelation()">&#8635; Re-run</button></div>'
+    + '<div class="toolbar"><input class="search-field" id="crrQ" placeholder="Search description, MITRE, explanation…" oninput="corrLoad()"/><select class="filter" id="crrVerdict" onchange="corrLoad()"><option value="all">All Verdicts</option><option value="COMPROMISED">Compromised</option><option value="SUSPICIOUS">Suspicious</option><option value="NORMAL">Normal</option></select><div class="count-label" id="crrCount">—</div></div>'
+    + '<div id="crrBody"></div></div>'
+  ) : '';
+
+  // Fix 3: triple hits stat card always shown, Fix 4: total_matches uses stats.total_matches with m.length fallback
+  var totalMatches = (stats && stats.total_matches != null) ? stats.total_matches : m.length;
+
+  document.getElementById('pageContent').innerHTML =
+    '<div class="g g-4">'
+    + statCard('&#127919;', totalMatches, 'Correlated Events', '#c0392b', 'Events confirmed by 2+ sources')
+    + statCard('&#9889;', tripleHits, 'Triple Hits', '#c0392b', 'AI + Wazuh + IOC (highest confidence)')
+    + statCard('&#128680;', aiIoc, 'AI + IOC', '#c0641a', 'AI anomaly with IOC flag')
+    + statCard('&#128308;', corr.compromised||0, 'COMPROMISED', '#c0392b', 'Correlation engine verdict')
+    + '</div>'
+    + '<div class="card"><div class="card-head"><div class="card-title-lg">&#9939; Attack Chains</div><span style="font-size:11px;color:var(--tx3)">' + chainSubtitle + '</span></div><div id="chainBody">' + chainHtml + '</div></div>'
+    + corrSectionFiltered
+    + '<div class="card"><div class="card-head"><div class="card-title-lg">&#127919; Correlated Threat Events</div><div style="font-size:11px;color:var(--tx3)">Events confirmed by 2+ detection sources (AI · IOC · Wazuh)</div></div>'
+    + '<div class="toolbar"><input class="search-field" id="hQ" placeholder="&#128269;  Filter by description, MITRE, date…" oninput="huntFilter()"/><select class="filter" id="hType" onchange="huntFilter()"><option value="all">All Types</option><option value="triple">Triple Hit (AI+Wazuh+IOC)</option><option value="ai_ioc">AI + IOC</option><option value="ai_wazuh">AI + Wazuh</option></select><div class="count-label" id="hCount">' + num(m.length) + ' events</div></div>'
+    + '<div id="hBody">' + renderHuntTbl(m) + '</div></div>';
+
+  window._huntMatches = m;
+
+  if (corr.loaded) { await corrLoad(); }
+}
+
+async function corrLoad() {
+  const d = await apiFetch('/correlation/results', {
+    q:       document.getElementById('crrQ')?.value||'',
+    verdict: document.getElementById('crrVerdict')?.value||'all',
+    limit: 500
+  });
+  document.getElementById('crrCount').textContent = num(d.total||0)+' events';
+  document.getElementById('crrBody').innerHTML = tbl(
+    ['Timestamp','OS','Verdict','Score','MITRE','Pattern','Explanation'],
+    d.rows||[], r=>`<tr>
+      <td class="mono" style="font-size:10.5px;white-space:nowrap">${esc((r.timestamp_utc||'').slice(0,19).replace('T',' '))}</td>
+      <td>${osBdg(r.os)}</td>
+      <td>${verdictBdg(r.verdict)}</td>
+      <td><span class="score-mini">${parseFloat(r.compromise_score||0).toFixed(3)}</span></td>
+      <td style="max-width:110px">${mitrePills(r.mitre_technique)}</td>
+      <td style="font-size:10px;color:var(--tx3)">${esc((r.pattern_flags||[]).join(', ')||'—')}</td>
+      <td style="font-size:11px" title="${esc(r.explanation)}">${esc(cut(r.explanation||'',90))}</td>
+    </tr>`
+  );
+}
+
+async function triggerCorrelation() {
+  const el = document.getElementById('corrRunStatus');
+  if(el) el.textContent = 'Running correlation engine…';
+  try {
+    const r = await fetch(API_BASE+'/correlation/run', {method:'POST', signal:AbortSignal.timeout(120000)});
+    const d = await r.json();
+    if(el) el.textContent = 'Done! Compromised: '+d.compromised+', Suspicious: '+d.suspicious+'. Reloading...';
+    setTimeout(()=>navTo('correlation',null), 1500);
+  } catch(e) {
+    if(el) el.textContent = 'Error: '+e.message;
+  }
+}
+
+function errCard(title, msg) {
+  return '<div class="card"><div class="empty"><div class="empty-icon">⚠</div><h3>'+esc(title)+'</h3><p>'+esc(msg)+'</p></div></div>';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REFRESH
+═══════════════════════════════════════════════════════════ */
+async function doRefresh(){
+  try{ await apiFetch('/reload') }catch(_){}
+  await loadTopbar();
+  await renderPage(currentPage);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   CASE SWITCHER
+═══════════════════════════════════════════════════════════ */
+
+async function loadCases() {
+  try {
+    const data = await apiFetch('/cases');
+    const sel = document.getElementById('caseSwitcher');
+    if (!sel || !data.cases || !data.cases.length) return;
+
+    // Get current case
+    let current = '';
+    try {
+      const cur = await apiFetch('/cases/current');
+      current = cur.case_dir || '';
+    } catch(_) {}
+
+    sel.innerHTML = data.cases.map(c => {
+      const label = c.case_id + (c.has_ai ? ' ✓AI' : '') + (c.has_corr ? ' ✓Corr' : '');
+      const selected = c.case_dir === current ? ' selected' : '';
+      return `<option value="${esc(c.case_dir)}"${selected}>${esc(label)}</option>`;
+    }).join('');
+  } catch(e) {
+    const sel = document.getElementById('caseSwitcher');
+    if (sel) sel.innerHTML = '<option value="">Cases unavailable</option>';
+  }
+}
+
+async function switchCase(caseDir) {
+  if (!caseDir) return;
+  const status = document.getElementById('caseSwitchStatus');
+  if (status) status.textContent = 'Switching…';
+  try {
+    await apiFetch(`/cases/switch?case_dir=${encodeURIComponent(caseDir)}`, {}, 'POST');
+    SUMMARY = null; RISK = null;
+    if (status) status.textContent = 'Switched!';
+    await loadTopbar();
+    await renderPage(currentPage);
+    setTimeout(()=>{ if(status) status.textContent=''; }, 2000);
+  } catch(e) {
+    if (status) status.textContent = 'Error: ' + e.message;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+(async()=>{
+  const ok = await checkConn();
+  if(ok){
+    await loadTopbar();
+    await loadCases();
+    await renderPage('overview');
+  }
+  setInterval(checkConn, 45000);
+  setInterval(loadCases, 60000);  // refresh case list every minute
+})();
+
+</script>
+</body>
+</html>
