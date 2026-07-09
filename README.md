@@ -32,12 +32,35 @@ Traditional compromise assessment is manual, slow, and siloed per operating syst
 ---
 
 ## Architecture
-
+ 
 ```
-<img width="763" height="645" alt="image" src="https://github.com/user-attachments/assets/6ccfea2c-9c07-4031-8349-8317d0044f20" />
-
+Windows Endpoint          Linux Endpoint
+      │                        │
+      │  collection scripts    │
+      └──────────┬─────────────┘
+                 │
+                 ▼
+          Analysis Server
+         ┌──────────────────────────────────┐
+         │  normalizer.py                   │
+         │       │                          │
+         │       ▼                          │
+         │  UNIFIED_TIMELINE.csv            │
+         │       │                          │
+         │       ├──▶  ai_model.py          │
+         │       ├──▶  enrichment_engine.py │
+         │       └──▶  correlation_engine.py│
+         │                 │                │
+         │                 ▼                │
+         │    api.py  ←─────────────────────┤
+         │       │                          │
+         │       ▼                          │
+         │  dashboard.html                  │
+         └──────────────────────────────────┘
+                 ▲
+          Wazuh Server (live alerts)
 ```
-
+ 
 ---
 
 ## Pipeline
